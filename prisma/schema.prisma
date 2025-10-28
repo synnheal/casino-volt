@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== TABLE USERS =====
+model User {
+  id        String   @id @default(cuid())
+  discordId String   @unique
+  username  String
+  avatar    String   // L'avatar hash de Discord
+  credits   BigInt   @default(0)
+  totalEarned   BigInt   @default(0)
+  totalSpent    BigInt   @default(0)
+  
+  messagesCount Int      @default(0)
+  vocalTime     Int      @default(0)
+  reactionsCount Int     @default(0)
+  
+  clanId        String?
+  clan          Clan?    @relation(fields: [clanId], references: [id])
+  
+  lastMessageAt DateTime?
+  lastReactionAt DateTime?
+  vocalJoinedAt DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  transactions  Transaction[]
+  clanLeading   Clan[]   @relation("ClanLeader")
+  clanInvites   ClanInvite[]
+  
+  // Relations Casino
+  casinoGames   CasinoGame[]
+  casinoStats   CasinoStats?
+  casinoSessions CasinoSession[]
+}
+
+// ===== TABLE CLANS =====
+model Clan {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  level         Int      @default(1)
+  xp            BigInt   @default(0)
+  treasury      BigInt   @default(0)
+  
+  leaderId      String
+  leader        User     @relation("ClanLeader", fields: [leaderId], references: [id])
+  
+  members       User[]
+  maxMembers    Int      @default(5)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  invites       ClanInvite[]
+}
+
+// ===== TABLE TRANSACTIONS =====
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  amount        BigInt
+  type          String
+  reason        String
+  
+  createdAt     DateTime @default(now())
+}
+
+// ===== TABLE INVITATIONS =====
+model ClanInvite {
+  id            String   @id @default(cuid())
+  
+  clanId        String
+  clan          Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  invitedBy     String
+  
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime @default(dbgenerated("NOW() + interval '7 days'"))
+  
+  @@unique([clanId, userId])
+}
+
+// ===== TABLE CONFIGURATION =====
+model BotConfig {
+  id                      String   @id @default(cuid())
+  
+  creditsPerMessage       Int      @default(5)
+  messageCooldown         Int      @default(60)
+  
+  creditsPerMinuteVocal   Int      @default(1)
+  vocalMinTime            Int      @default(2)
+  
+  creditsPerReaction      Int      @default(2)
+  reactionCooldown        Int      @default(30)
+  
+  clanCreateCost          Int      @default(1000)
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+// ===== TABLE RÔLES STAFF =====
+model StaffRole {
+  id                String   @id @default(cuid())
+  
+  name              String
+  discordRoleId     String   @unique
+  level             Int      @default(1)
+  
+  // Permissions
+  canManageClans    Boolean  @default(false)
+  canManageCredits  Boolean  @default(false)
+  canManageEvents   Boolean  @default(false)
+  canViewLogs       Boolean  @default(false)
+  canKickMembers    Boolean  @default(false)
+  canBanMembers     Boolean  @default(false)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ===== TABLES CASINO =====
+
+// Historique des parties
+model CasinoGame {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  gameType    String   // "roulette", "slots", "blackjack", etc.
+  betAmount   BigInt
+  winAmount   BigInt
+  result      Json     // détails de la partie (numéro, cartes, etc.)
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Stats globales par utilisateur
+model CasinoStats {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  totalGames      Int      @default(0)
+  totalWagered    BigInt   @default(0)
+  totalWon        BigInt   @default(0)
+  biggestWin      BigInt   @default(0)
+  currentStreak   Int      @default(0)
+  bestStreak      Int      @default(0)
+  level           Int      @default(1)
+  xp              Int      @default(0)
+  achievements    String[] // IDs des achievements débloqués
+  updatedAt       DateTime @updatedAt
+}
+
+// Jackpots progressifs
+model Jackpot {
+  id          String   @id @default(cuid())
+  gameType    String   @unique
+  amount      BigInt   @default(0)
+  lastWinnerId String?
+  lastWonAt   DateTime?
+  updatedAt   DateTime @updatedAt
+}
+
+// Achievements
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  icon        String
+  requirement Json     // conditions pour débloquer
+  reward      BigInt   // crédits bonus
+}
+
+// Sessions actives (pour anti-triche)
+model CasinoSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  ip        String
+  userAgent String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  
+  @@index([userId])
+}
