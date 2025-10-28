@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
 
   if (!code) {
-    const homeUrl = process.env.NEXTAUTH_URL || 'http://81.17.102.162:8006';
+    const homeUrl = process.env.NEXTAUTH_URL || 'http://localhost:8006';
     return NextResponse.redirect(homeUrl);
   }
 
@@ -106,16 +106,16 @@ export async function GET(request: NextRequest) {
     );
 
     // 5. Rediriger vers le dashboard avec le token
-    const dashboardUrl = process.env.NEXTAUTH_URL 
+    const dashboardUrl = process.env.NEXTAUTH_URL
       ? `${process.env.NEXTAUTH_URL}/dashboard`
-      : `http://81.17.102.162:8006/dashboard`;
+      : 'http://localhost:8006/dashboard';
 
     const response = NextResponse.redirect(dashboardUrl);
 
     // Stocker le token dans un cookie sécurisé
     response.cookies.set('auth_token', jwtToken, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7,
       path: '/',
@@ -126,9 +126,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Erreur OAuth Discord:', error);
     
-    const errorUrl = process.env.NEXTAUTH_URL 
+    const errorUrl = process.env.NEXTAUTH_URL
       ? `${process.env.NEXTAUTH_URL}/?error=auth_failed`
-      : `http://81.17.102.162:8006/?error=auth_failed`;
+      : 'http://localhost:8006/?error=auth_failed';
 
     return NextResponse.redirect(errorUrl);
   }

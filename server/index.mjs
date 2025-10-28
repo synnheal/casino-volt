@@ -9,7 +9,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: process.env.CLIENT_URL || 'http://localhost:8006',
     credentials: true,
   },
 });
@@ -378,10 +378,10 @@ io.on('connection', (socket) => {
 });
 
 // Démarrer le serveur
-const PORT = 3001;
+const PORT = process.env.SOCKET_PORT || 3001;
 httpServer.listen(PORT, () => {
   console.log(`🚀 Serveur Crash Game lancé sur http://localhost:${PORT}`);
-  
+
   // Démarrer la première partie
   startNewRound();
 });
